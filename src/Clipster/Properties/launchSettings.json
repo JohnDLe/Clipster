@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Clipster": {
+      "commandName": "Project",
+      "commandLineArgs": "-s \"C:\\Dev\\clipkeeper\\clipkeeper.server\\ClipKeeper.Server.WebService\\static\\clips\\20101229191308-02.avi\" -o \"C:\\Dev\\clipkeeper\\clipkeeper.server\\ClipKeeper.Server.WebService\\static\\clips\\20101229191308-02_preview.mp4\""
+    }
+  }
+}
