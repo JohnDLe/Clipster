@@ -6,6 +6,12 @@ using System.IO;
 
 namespace Clipster
 {
+    public enum AspectRatio
+    {
+        FullScreen, // 4:3
+        WideScreen  // 16:9
+        
+    }
     public static class PreviewEngine
     {
         private static string _workingDir;
@@ -20,9 +26,13 @@ namespace Clipster
         {
             SetWorkingDir(attribute.Source, attribute.Output);
             DisplayHero(attribute);
-        
+
+            double totalSeconds;
+            AspectRatio ratio;
+            GetVideoData(attribute.Source, out totalSeconds, out ratio);
+
             // Get video length in seconds
-            var length = (int)Math.Round(GetDuration(attribute.Source), 0);
+            var length = (int)Math.Round(totalSeconds, 0);
 
             // Ensure the video is long enough to even bother previewing
             var minLength = attribute.SnippetLengthInSeconds * attribute.DesiredSnippets;
@@ -34,8 +44,10 @@ namespace Clipster
                 Environment.Exit(0);
             }
 
-            // Video dimension
-            var dimensions = $"{attribute.VideoWidthInPixels}:{attribute.VideoHeightInPixels}";            
+            // Video dimension            
+            var dimensions = ratio == AspectRatio.FullScreen
+                ? @"(iw*sar)*min(427/(iw*sar)\,240/ih):ih*min(427/(iw*sar)\,240/ih), pad=427:240:(427-iw*min(427/iw\,240/ih))/2:(240-ih*min(427/iw\,240/ih))/2"
+                : "426x240";
             var interval = ((length - attribute.BeginSeconds) / attribute.DesiredSnippets);
             string arguments;
             for (var i = 1; i <= attribute.DesiredSnippets; i++)
@@ -52,7 +64,7 @@ namespace Clipster
                     Console.WriteLine($"Generating preview part {i}{_outputFileExt} at {formattedStart}");
 
                     // Generating the snippet at calculated time                
-                    arguments = $@"-i {_sourceFile} -vf scale={dimensions} -an -preset fast -qmin 1 -qmax 1 -ss {
+                    arguments = $@"-i {_sourceFile} -vf ""scale={dimensions}"" -an -preset fast -qmin 1 -qmax 1 -ss {
                         formattedStart} -t {attribute.SnippetLengthInSeconds} {_snippetsDir}\\{i}{_outputFileExt}";
                     RunVideoTool(arguments, attribute.Verbose);
                 }
@@ -72,14 +84,33 @@ namespace Clipster
             Console.WriteLine($"Clip creation completed! File is located at {attribute.Output}");
         }
 
-        private static double GetDuration(string filename)
+        private static void GetVideoData(string filename, out double totalSeconds, out AspectRatio ratio)
         {
             var mediaFile = new MediaFile { Filename = filename };
 
             using (var engine = new Engine(@".\ffmpeg\ffmpeg.exe"))
             {
                 engine.GetMetadata(mediaFile);
-                return mediaFile.Metadata.Duration.TotalSeconds;
+                totalSeconds = mediaFile.Metadata.Duration.TotalSeconds;
+
+                var frameSize = mediaFile.Metadata.VideoData.FrameSize;
+                var sizeArr = frameSize.Split('x');
+                var width = int.Parse(sizeArr[0]);
+                var height = int.Parse(sizeArr[1]);
+
+                var result = Math.Round((height * 16m) / width, 0);
+
+                switch (result)
+                {
+                    case 12:
+                        ratio = AspectRatio.FullScreen;
+                        break;
+                    case 9:
+                        ratio = AspectRatio.WideScreen;
+                        break;
+                    default:
+                        throw new ApplicationException($"Unsupported aspect ratio {frameSize}");
+                }
             }
         }
 

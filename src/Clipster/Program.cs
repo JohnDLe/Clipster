@@ -19,8 +19,7 @@ namespace Clipster
             var argDefaults = configuration.GetSection("ArgumentDefaults");
             var valDefaults = configuration.GetSection("ValidatorDefaults");
 
-
-            var idx = Array.FindIndex(args, s => s.Equals("-s") || s.Equals("--source")) + 1;
+            var idx = args.Length > 0 ? Array.FindIndex(args, s => s.Equals("-s") || s.Equals("--source")) + 1 : -1;
             var app = new CommandLineApplication();
 
             app.HelpOption();
@@ -28,11 +27,15 @@ namespace Clipster
                 CommandOptionType.SingleValue)
                     .IsRequired()
                     .Accepts(v => v.ExistingFile());
+
+
             var optionOutput = app.Option("-o|--output <Output>", "Output of the generated preview file",
-                CommandOptionType.SingleValue)
-                    .IsRequired()
+                CommandOptionType.SingleValue)                    
                     .Accepts(v => v.LegalFilePath());
-            optionOutput.Validators.Add(new OutputFileValidator(args[idx]));
+            if (idx > -1)
+            {
+                optionOutput.Validators.Add(new OutputFileValidator(args[idx]));
+            }
 
             var optionBeginSeconds = app.Option("-b|--begin-seconds <Seconds>", $"When to start the preview - default {argDefaults["BEGIN_SECONDS"]} seconds",
                 CommandOptionType.SingleValue);
